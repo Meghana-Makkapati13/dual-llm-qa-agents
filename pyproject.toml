@@ -1,0 +1,16 @@
+[project]
+name = "dual-llm-qa-agents"
+version = "0.1.0"
+description = "Dual-LLM Q&A Agents with FastAPI and OpenAI"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.109.0",
+    "uvicorn>=0.27.0",
+    "pydantic>=2.5.0",
+    "openai>=1.12.0",
+    "python-dotenv>=1.0.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

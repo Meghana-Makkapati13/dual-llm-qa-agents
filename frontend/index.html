@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dual-LLM Q&A Generator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .main-card {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            margin-bottom: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        label {
+            display: block;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+            font-size: 1em;
+        }
+
+        input[type="text"],
+        input[type="number"] {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 1em;
+            transition: all 0.3s;
+        }
+
+        input[type="text"]:focus,
+        input[type="number"]:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .input-hint {
+            font-size: 0.85em;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 15px;
+        }
+
+        button {
+            flex: 1;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 30px;
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            color: #667eea;
+            font-weight: 600;
+            font-size: 1.1em;
+        }
+
+        .results {
+            display: none;
+        }
+
+        .results.active {
+            display: block;
+        }
+
+        .results-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .results-title {
+            font-size: 1.5em;
+            color: #333;
+        }
+
+        .results-meta {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .qa-pair {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            transition: all 0.3s;
+        }
+
+        .qa-pair:hover {
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            transform: translateX(5px);
+        }
+
+        .qa-id {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .question {
+            font-size: 1.1em;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 10px;
+            line-height: 1.5;
+        }
+
+        .answer {
+            color: #555;
+            line-height: 1.6;
+            padding-left: 15px;
+        }
+
+        .error {
+            display: none;
+            background: #fee;
+            border: 2px solid #fcc;
+            border-radius: 10px;
+            padding: 15px;
+            color: #c33;
+            margin-bottom: 20px;
+        }
+
+        .error.active {
+            display: block;
+        }
+
+        .download-section {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 2px solid #e0e0e0;
+            text-align: center;
+        }
+
+        .btn-download {
+            background: #28a745;
+            color: white;
+            padding: 12px 30px;
+            border-radius: 10px;
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 1em;
+        }
+
+        .btn-download:hover {
+            background: #218838;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(40, 167, 69, 0.3);
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2em;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 1.8em;
+            }
+
+            .main-card {
+                padding: 20px;
+            }
+
+            .button-group {
+                flex-direction: column;
+            }
+
+            .stats {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 Dual-LLM Q&A Generator</h1>
+            <p>Generate intelligent question-answer pairs on any topic using AI</p>
+        </div>
+
+        <div class="main-card">
+            <div class="error" id="errorMessage"></div>
+
+            <form id="qaForm">
+                <div class="form-group">
+                    <label for="subject">Subject / Topic</label>
+                    <input 
+                        type="text" 
+                        id="subject" 
+                        name="subject" 
+                        placeholder="e.g., Python basics, Computer networks, Machine Learning"
+                        required
+                    >
+                    <div class="input-hint">Enter the topic you want to generate questions about</div>
+                </div>
+
+                <div class="form-group">
+                    <label for="numPairs">Number of Q&A Pairs</label>
+                    <input 
+                        type="number" 
+                        id="numPairs" 
+                        name="numPairs" 
+                        min="1" 
+                        max="50" 
+                        value="5"
+                        required
+                    >
+                    <div class="input-hint">Choose between 1 and 50 pairs (default: 5)</div>
+                </div>
+
+                <div class="button-group">
+                    <button type="submit" class="btn-primary" id="generateBtn">
+                        🚀 Generate Q&A Pairs
+                    </button>
+                    <button type="button" class="btn-secondary" id="resetBtn">
+                        🔄 Reset
+                    </button>
+                </div>
+            </form>
+
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <div class="loading-text">Generating Q&A pairs... This may take a moment.</div>
+            </div>
+
+            <div class="results" id="results">
+                <div class="stats" id="stats"></div>
+                
+                <div class="results-header">
+                    <div class="results-title" id="resultsTitle"></div>
+                    <div class="results-meta" id="resultsMeta"></div>
+                </div>
+
+                <div id="qaPairs"></div>
+
+                <div class="download-section">
+                    <button class="btn-download" id="downloadBtn">
+                        📥 Download JSON
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:8000';
+        let currentData = null;
+
+        const form = document.getElementById('qaForm');
+        const generateBtn = document.getElementById('generateBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const loading = document.getElementById('loading');
+        const results = document.getElementById('results');
+        const errorMessage = document.getElementById('errorMessage');
+        const qaPairs = document.getElementById('qaPairs');
+        const resultsTitle = document.getElementById('resultsTitle');
+        const resultsMeta = document.getElementById('resultsMeta');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const stats = document.getElementById('stats');
+
+        // Form submission
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const subject = document.getElementById('subject').value.trim();
+            const numPairs = parseInt(document.getElementById('numPairs').value);
+
+            if (!subject) {
+                showError('Please enter a subject');
+                return;
+            }
+
+            if (numPairs < 1 || numPairs > 50) {
+                showError('Number of pairs must be between 1 and 50');
+                return;
+            }
+
+            await generateQA(subject, numPairs);
+        });
+
+        // Reset button
+        resetBtn.addEventListener('click', () => {
+            form.reset();
+            results.classList.remove('active');
+            errorMessage.classList.remove('active');
+            currentData = null;
+        });
+
+        // Download button
+        downloadBtn.addEventListener('click', () => {
+            if (!currentData) return;
+
+            const dataStr = JSON.stringify(currentData, null, 2);
+            const blob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+            const safeSubject = currentData.subject.replace(/[^a-z0-9]/gi, '_');
+            a.download = `qa_session_${safeSubject}_${timestamp}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        });
+
+        async function generateQA(subject, numPairs) {
+            // Hide previous results and errors
+            results.classList.remove('active');
+            errorMessage.classList.remove('active');
+            
+            // Show loading
+            loading.classList.add('active');
+            generateBtn.disabled = true;
+
+            try {
+                const response = await fetch(`${API_URL}/run-session`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        subject: subject,
+                        num_pairs: numPairs
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || 'Failed to generate Q&A pairs');
+                }
+
+                const data = await response.json();
+                currentData = data;
+                displayResults(data);
+
+            } catch (error) {
+                showError(error.message);
+            } finally {
+                loading.classList.remove('active');
+                generateBtn.disabled = false;
+            }
+        }
+
+        function displayResults(data) {
+            // Display stats
+            stats.innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-value">${data.num_pairs}</div>
+                    <div class="stat-label">Q&A Pairs</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${data.subject.length > 20 ? data.subject.substring(0, 20) + '...' : data.subject}</div>
+                    <div class="stat-label">Subject</div>
+                </div>
+            `;
+
+            // Display header
+            resultsTitle.textContent = `Results for: ${data.subject}`;
+            resultsMeta.textContent = `${data.num_pairs} pairs generated`;
+
+            // Display Q&A pairs
+            qaPairs.innerHTML = data.pairs.map(pair => `
+                <div class="qa-pair">
+                    <div class="qa-id">Pair #${pair.id}</div>
+                    <div class="question">Q: ${escapeHtml(pair.question)}</div>
+                    <div class="answer">A: ${escapeHtml(pair.answer)}</div>
+                </div>
+            `).join('');
+
+            // Show results
+            results.classList.add('active');
+            
+            // Scroll to results
+            results.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        function showError(message) {
+            errorMessage.textContent = `Error: ${message}`;
+            errorMessage.classList.add('active');
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Check if API is running on page load
+        window.addEventListener('load', async () => {
+            try {
+                const response = await fetch(`${API_URL}/`);
+                if (!response.ok) {
+                    showError('Backend API is not responding. Make sure the FastAPI server is running on port 8000.');
+                }
+            } catch (error) {
+                showError('Cannot connect to backend API. Make sure the FastAPI server is running on port 8000.');
+            }
+        });
+    </script>
+</body>
+</html>
